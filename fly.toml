@@ -1,0 +1,55 @@
+# Fly.io Configuration for STANDARD.IO
+# Deploy: fly launch --no-deploy && fly postgres create --name standard-io-db --plan hobby && fly deploy
+
+app = "standard-io"
+primary_region = "iad"  # Change to your nearest region: iad, ord, lax, lhr, cdg, hkg, nrt, syd
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  PYTHONUNBUFFERED = "1"
+  # DATABASE_URL is automatically set by Fly Postgres attachment
+  # CORS_ORIGINS = "https://your-app.vercel.app"
+  # SECRET_KEY = "set-in-secrets"
+  # JWT_ALGORITHM = "HS256"
+  # JWT_EXPIRE_MINUTES = "1440"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true      # Stop when idle (free tier)
+  auto_start_machines = true     # Start on request
+  min_machines_running = 0       # Allow scale to zero
+  processes = ["app"]
+
+  # Health checks
+  [http_service.checks]
+    interval = "30s"
+    timeout = "10s"
+    grace_period = "30s"
+    method = "get"
+    path = "/health"
+
+  # Concurrency
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 100
+    soft_limit = 80
+
+[[vm]]
+  memory = "256mb"     # Free tier: 256MB shared CPU
+  cpu_kind = "shared"
+  cpus = 1
+
+# PostgreSQL (created separately: fly postgres create)
+# Attach with: fly postgres attach standard-io-db --app standard-io
+
+# Secrets (set via: fly secrets set KEY=VALUE)
+# SECRET_KEY, JWT_ALGORITHM, JWT_EXPIRE_MINUTES, CORS_ORIGINS
+
+# Volumes (for persistent SQLite if not using Postgres)
+# [mounts]
+#   source = "standard_io_data"
+#   destination = "/app/data"

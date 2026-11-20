@@ -1,8 +1,10 @@
 """STANDARD.IO FastAPI Backend Application."""
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
@@ -11,6 +13,22 @@ from models import User
 from seed import seed_database
 from deps import oauth2_scheme, get_current_user
 from routers import auth, products, customer, admin
+
+
+# CORS origins - configurable via environment variable
+def get_cors_origins():
+    """Get CORS origins from environment or use defaults."""
+    origins_env = os.getenv("CORS_ORIGINS", "")
+    if origins_env:
+        return [origin.strip() for origin in origins_env.split(",")]
+
+    # Default development origins
+    return [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
 
 
 @asynccontextmanager
@@ -36,13 +54,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS for the Vite dev server
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=get_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -53,6 +68,12 @@ app.include_router(auth.router)
 app.include_router(products.router)
 app.include_router(customer.router)
 app.include_router(admin.router)
+
+# Serve static files (React build) in production
+# This mounts the frontend at the root path
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.exists(static_dir):
+    app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
 
 
 @app.get("/")

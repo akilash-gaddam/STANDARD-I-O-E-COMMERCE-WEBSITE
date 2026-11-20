@@ -1,10 +1,15 @@
 import axios from 'axios';
 
+// Get API base URL from environment variable (set at build time by Vite)
+// Falls back to '/api' for development (proxied via Vite) or when served from same domain
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Important for cookies/JWT if using httpOnly cookies
 });
 
 // Request interceptor to add auth token
@@ -23,7 +28,10 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('access_token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      // Only redirect if not already on login page (avoid redirect loops)
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

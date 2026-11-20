@@ -1,18 +1,100 @@
 ﻿# Python
 __pycache__/
 *.py[cod]
-*.class
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
 *.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
 venv/
-.venv/
-.pytest_cache/
-test_standard_io.db
-# Node / Frontend
-frontend/node_modules/
-frontend/dist/
+env/
+ENV/
+.venv
+
+# Environment files
 .env
 .env.local
-# OS / IDE
+.env.production
+.env.*.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
 .DS_Store
 Thumbs.db
-.vscode/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Distribution
+*.tar.gz
+*.whl
+
+# Node.js / Frontend
+node_modules/
+dist/
+build/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Vercel
+.vercel
+
+# Railway
+.railway
+
+# Render
+.render
+
+# Fly.io
+fly.toml.local
+
+# Docker
+.docker/
+
+# Coverage
+coverage/
+.nyc_output/
+
+# TypeScript
+*.tsbuildinfo
+.eslintcache
+
+# Misc
+*.tsbuildinfo
+*.bak
+*.tmp
+*.temp

@@ -1,0 +1,183 @@
+name: Deploy STANDARD.IO
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Backend Tests
+  backend-test:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        run: pytest tests/test_standard_io.py -v --tb=short
+
+      - name: Check code style
+        run: |
+          pip install ruff
+          ruff check .
+
+  # Frontend Build & Lint
+  frontend-build:
+    name: Frontend Build & Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Build production bundle
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: /api
+
+  # Deploy Backend to Railway
+  deploy-backend:
+    name: Deploy Backend to Railway
+    needs: [backend-test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Railway
+        uses: railway-app/railway-deploy@v1
+        with:
+          token: ${{ secrets.RAILWAY_TOKEN }}
+          service: standard-io-api
+          working-directory: ./backend
+
+  # Deploy Frontend to Vercel
+  deploy-frontend:
+    name: Deploy Frontend to Vercel
+    needs: [frontend-build]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: "--prod"
+          working-directory: ./frontend
+
+  # Deploy with Render (Alternative)
+  deploy-render:
+    name: Deploy to Render (Blueprint)
+    needs: [backend-test, frontend-build]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Trigger Render Deploy
+        uses: render-composite-action/deploy@v1
+        with:
+          api-key: ${{ secrets.RENDER_API_KEY }}
+          service-ids: |
+            ${{ secrets.RENDER_API_SERVICE_ID }}
+            ${{ secrets.RENDER_FRONTEND_SERVICE_ID }}
+
+  # Docker Build & Push (Alternative)
+  docker-build:
+    name: Build & Push Docker Image
+    needs: [backend-test, frontend-build]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Notify on Failure
+  notify-failure:
+    name: Notify on Failure
+    needs: [backend-test, frontend-build, deploy-backend, deploy-frontend]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send failure notification
+        run: |
+          echo "❌ Deployment failed!"
+          echo "Check GitHub Actions for details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        shell: bash

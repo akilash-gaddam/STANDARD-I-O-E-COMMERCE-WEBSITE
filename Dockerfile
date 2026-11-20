@@ -7,7 +7,7 @@ WORKDIR /app/frontend
 # Copy package files
 COPY frontend/package*.json ./
 
-# Install dependencies (use npm install for flexibility with lockfile)
+# Install dependencies
 RUN npm install
 
 # Copy frontend source
@@ -17,7 +17,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # Stage 2: Python Backend with Frontend Static Files
-FROM python:3.13-slim AS backend
+FROM python:3.12-slim AS backend
 
 WORKDIR /app
 
@@ -33,7 +33,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy backend requirements
 COPY backend/requirements.txt .
 
-# Install Python dependencies (psycopg2-binary will compile with libpq-dev)
+# Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 

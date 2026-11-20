@@ -7,8 +7,8 @@ WORKDIR /app/frontend
 # Copy package files
 COPY frontend/package*.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies (use npm install for flexibility with lockfile)
+RUN npm install
 
 # Copy frontend source
 COPY frontend/ ./
@@ -21,16 +21,21 @@ FROM python:3.13-slim AS backend
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Install system dependencies including PostgreSQL build tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    postgresql-client \
+    libpq-dev \
+    gcc \
+    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy backend requirements
 COPY backend/requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies (psycopg2-binary will compile with libpq-dev)
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy backend source code
 COPY backend/ ./backend/

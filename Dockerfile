@@ -7,8 +7,8 @@ WORKDIR /app/frontend
 # Copy package files
 COPY frontend/package*.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies (lock file may lag behind package.json)
+RUN npm install --no-audit --no-fund
 
 # Copy frontend source
 COPY frontend/ ./
